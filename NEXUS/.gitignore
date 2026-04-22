@@ -1,0 +1,12 @@
+.env
+__pycache__/
+*.pyc
+venv/
+.venv/
+assets/memory.json
+assets/screenshots/
+assets/photos/
+*.pt
+*.log
+dist/
+build/
