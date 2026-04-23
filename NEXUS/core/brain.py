@@ -1,10 +1,10 @@
 """
 core/brain.py
-NEXUS — Intelligent Processing Core
+NEXUS — Intelligent Processing Core (Groq Edition)
 """
 
 import os
-import anthropic
+from groq import Groq
 from dotenv import load_dotenv
 from core.memory import MemoryStore
 
@@ -36,8 +36,8 @@ WhatsApp messaging, email, date/time queries, and memory recall.
         key = os.getenv("API_KEY")
         if not key:
             raise ValueError("API_KEY not found. Please set it in your .env file.")
-        self._client = anthropic.Anthropic(api_key=key)
-        self._model = "claude-opus-4-5"
+        self._client = Groq(api_key=key)
+        self._model = "llama-3.3-70b-versatile"
         self._history = []
         self._memory = MemoryStore()
 
@@ -51,22 +51,24 @@ WhatsApp messaging, email, date/time queries, and memory recall.
             self._history = self._history[-40:]
 
         try:
-            res = self._client.messages.create(
+            res = self._client.chat.completions.create(
                 model=self._model,
                 max_tokens=1024,
-                system=self._PERSONA,
-                messages=self._history
+                messages=[{"role": "system", "content": self._PERSONA}] + self._history
             )
-            reply = res.content[0].text
+            reply = res.choices[0].message.content
             self._history.append({"role": "assistant", "content": reply})
             self._memory.auto_capture(user_input, reply)
             return reply
-        except anthropic.AuthenticationError:
-            return "Authentication error. Please verify your API key in the .env file."
-        except anthropic.RateLimitError:
-            return "Processing limit reached. Please wait a moment."
+
         except Exception as e:
-            return f"Processing error: {str(e)}"
+            error = str(e)
+            if "401" in error or "invalid_api_key" in error:
+                return "Authentication error. Please verify your Groq API key in the .env file."
+            elif "429" in error or "rate_limit" in error:
+                return "Processing limit reached. Please wait a moment."
+            else:
+                return f"Processing error: {error}"
 
     def reset(self):
         self._history = []
